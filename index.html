@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tiny C Mini Compiler Studio</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app" class="app-layout">
+      <!-- Top Application Header -->
+      <header class="app-header">
+        <div class="header-brand">
+          <div class="logo-icon">
+            <span class="logo-symbol">&lt;/&gt;</span>
+          </div>
+          <div class="brand-info">
+            <h1 class="brand-title">Tiny C Mini Compiler</h1>
+            <span class="brand-subtitle">Lexer &bull; AST Parser &bull; Semantics &bull; TAC Optimizer &bull; VM &bull; x86</span>
+          </div>
+        </div>
+
+        <div class="header-controls">
+          <div class="control-group">
+            <label for="example-select" class="control-label">Example Programs:</label>
+            <select id="example-select" class="select-dropdown">
+              <option value="factorial">Recursive Factorial</option>
+              <option value="fibonacci">Fibonacci Sequence</option>
+              <option value="bubble_sort">Bubble Sort (Arrays & Loops)</option>
+              <option value="prime_checker">Prime Number Checker</option>
+              <option value="gcd">Euclidean GCD</option>
+              <option value="optimizer_demo">Optimizer & Constant Folding</option>
+              <option value="interactive_io">Interactive User I/O</option>
+            </select>
+          </div>
+
+          <div class="header-buttons">
+            <button id="btn-compile" class="btn btn-primary" title="Compile Tiny C code (Ctrl+Enter)">
+              <span class="btn-icon">⚡</span> Compile
+            </button>
+            <button id="btn-run-all" class="btn btn-success" title="Compile and Execute in VM">
+              <span class="btn-icon">▶</span> Run
+            </button>
+            <button id="btn-export" class="btn btn-subtle" title="Download Source File">
+              <span class="btn-icon">💾</span> Export
+            </button>
+            <button id="btn-open-grammar" class="btn btn-subtle" title="View Tiny C Grammar">
+              <span class="btn-icon">📖</span> Grammar
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Two-Pane Studio Layout -->
+      <main class="studio-main">
+        <!-- Left Side: Source Code Editor -->
+        <section class="pane pane-editor">
+          <div class="pane-header">
+            <div class="pane-title-group">
+              <span class="pane-icon">📝</span>
+              <span class="pane-title">Tiny C Source</span>
+              <span id="file-badge" class="badge badge-file">main.tc</span>
+            </div>
+            <div class="pane-actions">
+              <button id="btn-clear-code" class="btn-tool" title="Clear Editor">Clear</button>
+              <button id="btn-copy-code" class="btn-tool" title="Copy Source Code">Copy</button>
+            </div>
+          </div>
+
+          <!-- Code Editor Wrapper with Line Numbers -->
+          <div class="editor-wrapper">
+            <div id="line-numbers" class="line-numbers-gutter"></div>
+            <textarea
+              id="code-input"
+              class="code-textarea"
+              spellcheck="false"
+              placeholder="// Write your Tiny C program here..."
+            ></textarea>
+          </div>
+
+          <!-- Diagnostics Banner (Errors & Warnings) -->
+          <div id="diagnostics-panel" class="diagnostics-panel hidden">
+            <div class="diagnostics-header">
+              <span class="diag-icon">⚠️</span>
+              <span id="diagnostics-summary" class="diag-summary">Compilation Messages</span>
+              <button id="btn-close-diag" class="diag-close">&times;</button>
+            </div>
+            <div id="diagnostics-list" class="diagnostics-list"></div>
+          </div>
+        </section>
+
+        <!-- Right Side: Compiler Pipeline Inspector Tabs -->
+        <section class="pane pane-inspector">
+          <nav class="inspector-tabs">
+            <button class="tab-btn active" data-target="tab-tokens" id="tab-btn-tokens">
+              <span class="tab-icon">🏷️</span> Tokens
+            </button>
+            <button class="tab-btn" data-target="tab-ast" id="tab-btn-ast">
+              <span class="tab-icon">🌳</span> Syntax Tree
+            </button>
+            <button class="tab-btn" data-target="tab-symbols" id="tab-btn-symbols">
+              <span class="tab-icon">📊</span> Symbol Table
+            </button>
+            <button class="tab-btn" data-target="tab-tac" id="tab-btn-tac">
+              <span class="tab-icon">⚡</span> 3-Address Code
+            </button>
+            <button class="tab-btn" data-target="tab-vm" id="tab-btn-vm">
+              <span class="tab-icon">🚀</span> TinyVM Debugger
+            </button>
+            <button class="tab-btn" data-target="tab-x86" id="tab-btn-x86">
+              <span class="tab-icon">⚙️</span> x86 Assembly
+            </button>
+            <button class="tab-btn" data-target="tab-grammar" id="tab-btn-grammar">
+              <span class="tab-icon">📚</span> Grammar & Docs
+            </button>
+          </nav>
+
+          <!-- Tab Panels Container -->
+          <div class="tab-content">
+            <!-- 1. Tokens Tab -->
+            <div id="tab-tokens" class="tab-panel active">
+              <div class="panel-toolbar">
+                <div class="toolbar-stats" id="token-stats">
+                  <span class="badge badge-info">Tokens: <strong id="stat-total-tokens">0</strong></span>
+                  <span class="badge badge-subtle">Keywords: <strong id="stat-keywords">0</strong></span>
+                  <span class="badge badge-subtle">Identifiers: <strong id="stat-identifiers">0</strong></span>
+                  <span class="badge badge-subtle">Literals: <strong id="stat-literals">0</strong></span>
+                </div>
+                <div class="toolbar-filter">
+                  <input
+                    type="text"
+                    id="token-filter"
+                    class="filter-input"
+                    placeholder="Search tokens or filter by type..."
+                  />
+                </div>
+              </div>
+              <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 60px">#</th>
+                      <th style="width: 150px">Token Type</th>
+                      <th>Lexeme / Value</th>
+                      <th style="width: 110px">Position</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tokens-table-body">
+                    <tr>
+                      <td colspan="4" class="empty-row">Click Compile to view tokens.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- 2. Syntax Tree (AST) Tab -->
+            <div id="tab-ast" class="tab-panel">
+              <div class="panel-toolbar">
+                <div class="ast-controls">
+                  <button id="btn-ast-zoomin" class="btn-tool" title="Zoom In">+</button>
+                  <button id="btn-ast-zoomout" class="btn-tool" title="Zoom Out">&minus;</button>
+                  <button id="btn-ast-reset" class="btn-tool" title="Reset Pan & Zoom">Reset View</button>
+                  <span class="ast-hint">&bull; Click a node to view attributes &bull; Drag to pan &bull; Scroll to zoom</span>
+                </div>
+                <div class="view-toggle">
+                  <button id="btn-ast-mode-svg" class="btn-toggle active">Visual Tree (SVG)</button>
+                  <button id="btn-ast-mode-json" class="btn-toggle">JSON Hierarchy</button>
+                </div>
+              </div>
+              <div class="ast-split-view">
+                <div id="ast-container" class="ast-svg-wrapper">
+                  <div class="empty-state">No AST available. Click Compile to parse syntax tree.</div>
+                </div>
+                <div id="ast-json-view" class="ast-json-wrapper hidden">
+                  <pre id="ast-json-content"></pre>
+                </div>
+                <div id="ast-node-details" class="ast-inspector-pane">
+                  <div class="empty-state-subtle">Select any node in the tree to inspect AST properties.</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 3. Symbol Table Tab -->
+            <div id="tab-symbols" class="tab-panel">
+              <div class="panel-toolbar">
+                <div class="toolbar-stats" id="symbol-stats">
+                  <span class="badge badge-info">Scopes: <strong id="stat-scopes-count">0</strong></span>
+                  <span class="badge badge-subtle">Symbols: <strong id="stat-symbols-count">0</strong></span>
+                </div>
+                <div class="toolbar-filter">
+                  <select id="scope-select-filter" class="select-dropdown">
+                    <option value="all">All Scopes</option>
+                  </select>
+                </div>
+              </div>
+              <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Scope</th>
+                      <th>Category</th>
+                      <th>Data Type</th>
+                      <th>Params / Array Dim</th>
+                      <th>Offset</th>
+                      <th>Line</th>
+                    </tr>
+                  </thead>
+                  <tbody id="symbols-table-body">
+                    <tr>
+                      <td colspan="7" class="empty-row">Click Compile to analyze symbol table.</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- 4. Three-Address Code (TAC) & Optimizer Tab -->
+            <div id="tab-tac" class="tab-panel">
+              <div class="panel-toolbar">
+                <div class="optimizer-metrics">
+                  <span class="badge badge-info">Original: <strong id="tac-stat-orig">0</strong> instrs</span>
+                  <span class="badge badge-success">Optimized: <strong id="tac-stat-opt">0</strong> instrs</span>
+                  <span class="badge badge-accent" id="tac-stat-reduction">0% reduction</span>
+                </div>
+                <div class="tac-tabs-toggle">
+                  <button id="btn-tac-view-split" class="btn-toggle active">Side-by-Side Diff</button>
+                  <button id="btn-tac-view-log" class="btn-toggle">Optimizer Log</button>
+                </div>
+              </div>
+
+              <!-- Side-by-Side TAC View -->
+              <div id="tac-split-view" class="tac-comparison-container">
+                <div class="tac-pane">
+                  <div class="tac-pane-title">
+                    <span>Original TAC (Quadruples)</span>
+                  </div>
+                  <pre id="tac-orig-content" class="tac-code-block"></pre>
+                </div>
+                <div class="tac-pane">
+                  <div class="tac-pane-title">
+                    <span>Optimized TAC (Constant Folded & Dead Code Eliminated)</span>
+                  </div>
+                  <pre id="tac-opt-content" class="tac-code-block"></pre>
+                </div>
+              </div>
+
+              <!-- Optimizer Applied Steps Log -->
+              <div id="tac-log-view" class="tac-log-container hidden">
+                <h4 class="section-heading">Optimization Passes Applied</h4>
+                <div id="optimizer-log-list" class="optimizer-log-list"></div>
+              </div>
+            </div>
+
+            <!-- 5. TinyVM Step-by-Step Debugger Tab -->
+            <div id="tab-vm" class="tab-panel">
+              <div class="vm-control-bar">
+                <div class="vm-actions">
+                  <button id="vm-btn-step" class="btn btn-secondary" title="Execute single instruction">
+                    <span class="btn-icon">↷</span> Step
+                  </button>
+                  <button id="vm-btn-run" class="btn btn-primary" title="Start/Pause animated execution">
+                    <span class="btn-icon">▶</span> Run
+                  </button>
+                  <button id="vm-btn-reset" class="btn btn-subtle" title="Reset VM state">
+                    <span class="btn-icon">↺</span> Reset
+                  </button>
+                </div>
+
+                <div class="vm-speed-group">
+                  <label for="vm-speed-select">Speed:</label>
+                  <select id="vm-speed-select" class="select-dropdown">
+                    <option value="500">Slow (500ms)</option>
+                    <option value="150" selected>Normal (150ms)</option>
+                    <option value="30">Fast (30ms)</option>
+                    <option value="0">Instant</option>
+                  </select>
+                </div>
+
+                <div id="vm-status-badge" class="vm-status">
+                  <span class="badge badge-subtle">Ready</span>
+                </div>
+              </div>
+
+              <!-- 3-Column VM Debugger Layout -->
+              <div class="vm-debugger-grid">
+                <!-- Col 1: Bytecode Instructions -->
+                <div class="vm-col vm-col-bytecode">
+                  <div class="vm-col-header">
+                    <span>Bytecode Instructions</span>
+                    <span class="text-muted" id="bc-count">0 ops</span>
+                  </div>
+                  <div id="bytecode-list" class="bytecode-scroll-view"></div>
+                </div>
+
+                <!-- Col 2: Stack & Call Frames -->
+                <div class="vm-col vm-col-state">
+                  <div class="vm-subcol">
+                    <div class="vm-col-header">
+                      <span>Evaluation Stack</span>
+                    </div>
+                    <div id="vm-stack-container" class="stack-view">
+                      <div class="empty-stack-hint">&lt;Empty Stack&gt;</div>
+                    </div>
+                  </div>
+
+                  <div class="vm-subcol">
+                    <div class="vm-col-header">
+                      <span>Call Stack (Frames)</span>
+                    </div>
+                    <div id="vm-callstack-container" class="callstack-view">
+                      <div class="empty-stack-hint">&lt;Global Scope&gt;</div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Col 3: Memory & Terminal Console -->
+                <div class="vm-col vm-col-io">
+                  <div class="vm-subcol" style="flex: 1">
+                    <div class="vm-col-header">
+                      <span>Memory & Heap Arrays</span>
+                    </div>
+                    <div id="vm-memory-container" class="memory-view">
+                      <div class="empty-stack-hint">&lt;No allocated memory&gt;</div>
+                    </div>
+                  </div>
+
+                  <div class="vm-subcol" style="flex: 1.5">
+                    <div class="vm-col-header">
+                      <span>Virtual Console Output</span>
+                      <button id="btn-clear-console" class="btn-link">Clear</button>
+                    </div>
+                    <pre id="terminal-output" class="terminal-view">&gt; Program ready.</pre>
+
+                    <!-- User Input Prompt for read_int() -->
+                    <div id="vm-input-container" class="terminal-input-bar hidden">
+                      <span class="prompt-symbol">&gt;&gt; Input Integer:</span>
+                      <input type="number" id="vm-input-box" class="terminal-input" placeholder="Enter integer..." />
+                      <button id="vm-input-submit" class="btn btn-sm btn-primary">Submit</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 6. x86-64 NASM Assembly Tab -->
+            <div id="tab-x86" class="tab-panel">
+              <div class="panel-toolbar">
+                <div class="toolbar-stats">
+                  <span class="badge badge-accent">Target: x86-64 NASM</span>
+                  <span class="badge badge-subtle">ABI: System V / AMD64</span>
+                </div>
+                <button id="btn-copy-x86" class="btn-tool">Copy Assembly</button>
+              </div>
+              <div class="code-viewer-container">
+                <pre id="x86-output" class="code-view-block"></pre>
+              </div>
+            </div>
+
+            <!-- 7. Grammar & Guide Tab -->
+            <div id="tab-grammar" class="tab-panel">
+              <div class="grammar-doc-container">
+                <section class="doc-section">
+                  <h3 class="doc-heading">1. Tiny C Language Overview</h3>
+                  <p class="doc-text">
+                    <strong>Tiny C</strong> is an expressive subset of the C programming language designed for compiler design courses. It incorporates fundamental imperative programming constructs including data types (<code>int</code>, <code>char</code>, <code>void</code>), multi-dimensional control structures (<code>if/else</code>, <code>while</code>, <code>for</code>), 1D arrays, and recursive function definitions.
+                  </p>
+                </section>
+
+                <section class="doc-section">
+                  <h3 class="doc-heading">2. Complete Compiler Pipeline Architecture</h3>
+                  <div class="pipeline-flow">
+                    <div class="flow-step">
+                      <div class="step-num">1</div>
+                      <div class="step-name">Lexical Analysis</div>
+                      <div class="step-desc">Transforms raw characters into token stream</div>
+                    </div>
+                    <div class="flow-arrow">&rarr;</div>
+                    <div class="flow-step">
+                      <div class="step-num">2</div>
+                      <div class="step-name">Syntax Analysis</div>
+                      <div class="step-desc">Recursive descent parser constructs AST</div>
+                    </div>
+                    <div class="flow-arrow">&rarr;</div>
+                    <div class="flow-step">
+                      <div class="step-num">3</div>
+                      <div class="step-name">Semantic Checks</div>
+                      <div class="step-desc">Symbol table, scope rules, type validation</div>
+                    </div>
+                    <div class="flow-arrow">&rarr;</div>
+                    <div class="flow-step">
+                      <div class="step-num">4</div>
+                      <div class="step-name">Intermediate Code</div>
+                      <div class="step-desc">Three-Address Code (TAC) generation</div>
+                    </div>
+                    <div class="flow-arrow">&rarr;</div>
+                    <div class="flow-step">
+                      <div class="step-num">5</div>
+                      <div class="step-name">Code Optimizer</div>
+                      <div class="step-desc">Constant folding, dead code elimination</div>
+                    </div>
+                    <div class="flow-arrow">&rarr;</div>
+                    <div class="flow-step">
+                      <div class="step-num">6</div>
+                      <div class="step-name">VM & x86 Target</div>
+                      <div class="step-desc">Bytecode execution & x86-64 assembly</div>
+                    </div>
+                  </div>
+                </section>
+
+                <section class="doc-section">
+                  <h3 class="doc-heading">3. BNF / EBNF Formal Grammar Specification</h3>
+                  <pre class="grammar-block">
+&lt;program&gt;             ::= &lt;declaration&gt;* EOF
+&lt;declaration&gt;         ::= &lt;type&gt; IDENTIFIER ( &lt;function_decl&gt; | &lt;variable_decl&gt; )
+&lt;type&gt;                ::= "int" | "char" | "void"
+&lt;function_decl&gt;       ::= "(" &lt;param_list&gt;? ")" &lt;block&gt;
+&lt;param_list&gt;          ::= &lt;param&gt; ( "," &lt;param&gt; )*
+&lt;param&gt;               ::= &lt;type&gt; IDENTIFIER ( "[" "]" )?
+&lt;variable_decl&gt;       ::= ( "[" INT_LITERAL "]" )? ( "=" &lt;expression&gt; )? ";"
+
+&lt;statement&gt;           ::= &lt;block&gt;
+                        | "if" "(" &lt;expression&gt; ")" &lt;statement&gt; ( "else" &lt;statement&gt; )?
+                        | "while" "(" &lt;expression&gt; ")" &lt;statement&gt;
+                        | "for" "(" &lt;for_init&gt; ";" &lt;expression&gt;? ";" &lt;expression&gt;? ")" &lt;statement&gt;
+                        | "return" &lt;expression&gt;? ";"
+                        | "break" ";"
+                        | "continue" ";"
+                        | &lt;type&gt; IDENTIFIER &lt;variable_decl&gt;
+                        | &lt;expression&gt; ";"
+
+&lt;expression&gt;          ::= &lt;assignment&gt;
+&lt;assignment&gt;          ::= &lt;logical_or&gt; ( ( "=" | "+=" | "-=" | "*=" | "/=" ) &lt;assignment&gt; )?
+&lt;logical_or&gt;          ::= &lt;logical_and&gt; ( "||" &lt;logical_and&gt; )*
+&lt;logical_and&gt;         ::= &lt;equality&gt; ( "&amp;&amp;" &lt;equality&gt; )*
+&lt;equality&gt;            ::= &lt;relational&gt; ( ( "==" | "!=" ) &lt;relational&gt; )*
+&lt;relational&gt;          ::= &lt;additive&gt; ( ( "&lt;" | "&lt;=" | "&gt;" | "&gt;=" ) &lt;additive&gt; )*
+&lt;additive&gt;            ::= &lt;multiplicative&gt; ( ( "+" | "-" ) &lt;multiplicative&gt; )*
+&lt;multiplicative&gt;      ::= &lt;unary&gt; ( ( "*" | "/" | "%" ) &lt;unary&gt; )*
+&lt;unary&gt;               ::= ( "!" | "-" | "+" | "++" | "--" ) &lt;unary&gt; | &lt;postfix&gt;
+&lt;postfix&gt;             ::= &lt;primary&gt; ( "[" &lt;expression&gt; "]" | "(" &lt;arg_list&gt;? ")" | "++" | "--" )*
+&lt;primary&gt;             ::= INT_LITERAL | CHAR_LITERAL | STRING_LITERAL | IDENTIFIER | "(" &lt;expression&gt; ")"
+                  </pre>
+                </section>
+
+                <section class="doc-section">
+                  <h3 class="doc-heading">4. Built-in Standard Library Functions</h3>
+                  <table class="data-table">
+                    <thead>
+                      <tr>
+                        <th>Function</th>
+                        <th>Signature</th>
+                        <th>Description</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td><code>print_int(x)</code> / <code>print(x)</code></td>
+                        <td><code>void (int)</code></td>
+                        <td>Prints an integer number to the terminal console</td>
+                      </tr>
+                      <tr>
+                        <td><code>print_char(c)</code></td>
+                        <td><code>void (char)</code></td>
+                        <td>Prints an ASCII character to the terminal console</td>
+                      </tr>
+                      <tr>
+                        <td><code>print_str(s)</code></td>
+                        <td><code>void (string)</code></td>
+                        <td>Prints a formatted string literal (with escape characters)</td>
+                      </tr>
+                      <tr>
+                        <td><code>println()</code></td>
+                        <td><code>void ()</code></td>
+                        <td>Outputs a newline character</td>
+                      </tr>
+                      <tr>
+                        <td><code>read_int()</code></td>
+                        <td><code>int ()</code></td>
+                        <td>Prompts user for input integer in the TinyVM terminal</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </section>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
